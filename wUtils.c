@@ -1,3 +1,23 @@
+/*
+ * Copyright 2026 Molino Rosario Walter
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * --- IMPORTANT NOTICE ---
+ * THIS SOFTWARE IS PROVIDED SOLELY FOR EDUCATIONAL AND ACADEMIC PURPOSES.
+ * IT IS NOT INTENDED AND MUST NOT BE USED IN PRODUCTION ENVIRONMENTS.
+ */
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -115,11 +135,11 @@ void insert_value(wDict * dict, char * key, Value value){
             if(strcmp(next_node->key,key)==0){
                 if(next_node->value.type == DICTIONARY) {
                     next_node->value.data.dict->ref_counting -=1;
-                    if(next_node->value.data.dict->ref_counting ==0) free(next_node->value.data.dict);
+                    if(next_node->value.data.dict->ref_counting ==0) _destroy_dict(&next_node->value.data.dict);
                 }
                 if(next_node->value.type == LIST) {
                     next_node->value.data.list->ref_counting -=1;
-                    if(next_node->value.data.list->ref_counting ==0) free(next_node->value.data.list);
+                    if(next_node->value.data.list->ref_counting ==0) _destroy_list(&next_node->value.data.list);
                 }
                 if(next_node->value.type == TEXT) {
                     
@@ -127,6 +147,7 @@ void insert_value(wDict * dict, char * key, Value value){
                 }
                 next_node->value=value;
                 //node is not more useful
+                free(node->key);
                 free(node);
                 return;
             }
