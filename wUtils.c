@@ -458,6 +458,7 @@ void _destroy_list(wList **list_ptr){
 
 
 
+//create dictionary with fix capacity
 wDict * create_dictionary(int capacity){
     if (capacity == 0) return NULL;
 
