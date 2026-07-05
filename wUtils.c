@@ -297,6 +297,7 @@ static void destroy_object(wDict_destroy * dict_list,wList_destroy * lists_toDes
                             default : break;
                         }
                         switch_slot = slot->next;
+                        free(slot->key);
                         free(slot);
                         printf("free slot\n");
                         slot = switch_slot;
@@ -307,6 +308,7 @@ static void destroy_object(wDict_destroy * dict_list,wList_destroy * lists_toDes
                 dict_list_next = dict_list->next;
 
                 //destroy the dict
+                free(dict_list->dict->slots);   
                 free(dict_list->dict);
 
                 //destroy di element in list
@@ -398,6 +400,7 @@ static void destroy_object(wDict_destroy * dict_list,wList_destroy * lists_toDes
                     lists_toDestroy_next = lists_toDestroy->next;
 
                     //destroy the dict
+                    free(lists_toDestroy->list->elements);   
                     free(lists_toDestroy->list);
 
                     //destroy di element in list

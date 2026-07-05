@@ -1,6 +1,30 @@
 #include <stdio.h>
 #include "wUtils.h"
 
+void test_shared_ownership(){
+    wDict * shared = create_dictionary(3);
+    insert_value(shared, "x", new_value(1));
+
+    wDict * container_a = create_dictionary(3);
+    wDict * container_b = create_dictionary(3);
+    insert_value(container_a, "s", new_value(shared));
+    insert_value(container_b, "s", new_value(shared));
+
+    destroy(&container_a);
+    int * v = (int*)get_value(shared, "x");
+    printf("shared ancora vivo, valore=%d\n", v ? *v : -1);
+
+    destroy(&container_b);
+}
+
+void test_update_overwrite_nested(){
+    wDict * dict = create_dictionary(3);
+    wDict * old_nested = create_dictionary(3);
+    insert_value(dict, "k", new_value(old_nested));
+    insert_value(dict, "k", new_value(99));  // sovrascrive: old_nested deve essere distrutto qui
+    destroy(&dict);
+}
+
 int main(){
     wDict * dict = create_dictionary(3);
     wDict * dict2 = create_dictionary(3);
@@ -11,7 +35,7 @@ int main(){
     insert_value(dict2,"pippo",new_value(3));
     insert_value(dict2,"pippo2",new_value(dict3));
     dict3=NULL;
-    
+
     insert_value(dict,"hello",new_value(5));
     insert_value(dict,"ciao",new_value("walter"));
     insert_value(dict,"nada",new_value("cipro"));
@@ -46,6 +70,7 @@ int main(){
     destroy(&dict);
     destroy(&list);
     destroy(&list);
-    
+    test_shared_ownership();
+    test_update_overwrite_nested();
     return 0;
 }
