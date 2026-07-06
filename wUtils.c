@@ -157,7 +157,14 @@ void insert_value(wDict * dict, char * key, Value value){
         
         tmp_node->next = node;
     }
-    
+    dict->element_inserted += 1;
+    if (dict->element_inserted == dict->capacity){
+        printf("eccomi %s\n",key);
+        resize_dict(dict);
+        printf("resized \n");
+    }
+        
+
 }
 
 
@@ -178,6 +185,10 @@ void append_element(wList * list, Value value){
         printf("insert eleemnt %i\n",index);
 
         list->element_inserted += 1;
+        if (list->element_inserted == list->capacity){
+            resize_list(list);
+            printf("realloc list\n");
+        }
     }
 
     
@@ -204,6 +215,69 @@ static void free_dict_list(wDict_destroy * dict_list,wList_destroy * lists_toDes
     }
 
 }
+
+void resize_dict(wDict * dict){
+    int old_capacity = dict->capacity;
+    int old_element_inserted = dict->element_inserted;
+    int new_capacity= old_capacity*2;
+    printf("elementi inseriti %i %i\n",dict->element_inserted, new_capacity);
+    Node ** tmp = (Node **) calloc(new_capacity,sizeof(Node*));
+    printf("ciao \n");
+
+    printf("eccomi qui\n");
+    if (tmp == NULL){
+        printf("Errore riallocazione \n");
+    }else{
+        printf("else \n");
+        Node ** old = dict->slots;
+        dict->slots = tmp;
+        dict->element_inserted=0;
+        dict->capacity =new_capacity;
+        printf("pre for \n");
+        
+        for(int i=0; i<old_capacity; i++){
+            
+            printf("iesimo %i",i);
+            Node * node_tmp=old[i];
+            while(node_tmp!=NULL){
+                switch(node_tmp->value.type){
+                    case TEXT: insert_value(dict,node_tmp->key,new_value(node_tmp->value.data.text)); break;
+                    case NUMBER: insert_value(dict,node_tmp->key,new_value(node_tmp->value.data.number)); break;
+                    case DOUBLE: insert_value(dict,node_tmp->key,new_value(node_tmp->value.data.real));break;
+                    case DICTIONARY: insert_value(dict,node_tmp->key,new_value(node_tmp->value.data.dict));break;
+                    case LIST: insert_value(dict,node_tmp->key,new_value(node_tmp->value.data.list));break;
+                    default: break;
+                }
+                
+                node_tmp = node_tmp->next;
+                
+                
+            }
+        }
+        wDict * tmp_dict = (wDict*) malloc(sizeof(wDict));
+        tmp_dict->capacity=old_capacity;
+        tmp_dict->ref_counting=0;
+        tmp_dict->element_inserted=old_element_inserted;
+        tmp_dict->slots = old;
+        destroy(&tmp_dict);
+        printf("fine \n");
+    }
+
+}
+
+
+void resize_list(wList * list){
+    int new_capacity = list->capacity*2;
+    Value ** tmp = realloc(list->elements,(sizeof(Value*) * new_capacity));
+    if (tmp == NULL){
+        printf("Errore riallocazione \n");
+    }else{
+        list->capacity = new_capacity;
+        list->elements = tmp;
+    }
+
+}
+
 
 static void destroy_object(wDict_destroy * dict_list,wList_destroy * lists_toDestroy){
     
@@ -470,6 +544,7 @@ wDict * create_dictionary(int capacity){
 
     dict->capacity = capacity;
     dict->ref_counting = 0;
+    dict->element_inserted =0;
     
     dict->slots = (Node **) malloc(sizeof(Node*) * capacity) ;
     if(dict->slots == NULL){

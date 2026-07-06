@@ -66,6 +66,7 @@ struct wDict{
     Node ** slots;
     int capacity;
     int ref_counting;
+    int element_inserted;
 
 };
 
@@ -108,6 +109,9 @@ void * get_value(wDict * dict,char * key);
 wList * create_list(int capacity);
 void append_element(wList * list, Value value);
 void * get_element(wList * dict,int index);
+void resize_dict(wDict * dict);
+void resize_list(wList * list);
+
 
 #define destroy(object) _Generic((object), \
 wList **: _destroy_list, \

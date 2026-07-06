@@ -1,6 +1,17 @@
 #include <stdio.h>
 #include "wUtils.h"
 
+void test_resize(){
+    wDict * shared = create_dictionary(2);
+wDict * container = create_dictionary(4);
+insert_value(container, "s", new_value(shared));   // shared.ref_counting = 1
+
+insert_value(shared, "a", new_value(1));
+insert_value(shared, "b", new_value(2));   // shared.capacity(2) raggiunta -> resize_dict(shared) con ref_counting=1
+
+destroy(&container);   // deve liberare correttamente shared, incluso il rehash
+}
+
 void test_shared_ownership(){
     wDict * shared = create_dictionary(3);
     insert_value(shared, "x", new_value(1));
@@ -62,7 +73,10 @@ int main(){
     printf("list element 0 %i\n",*(int*)get_element(list,0));
     printf("list element 1 %i\n",*(int*)get_value((wDict*)get_element(list,1),"pippo"));
     
+    //resize_dict(dict,10);
     insert_value(dict,"beth2",new_value(list));
+    insert_value(dict,"beth3",new_value(list));
+    insert_value(dict,"beth4",new_value(list));
     list=NULL; //ownership list
 
     destroy(&dict);
@@ -72,5 +86,6 @@ int main(){
     destroy(&list);
     test_shared_ownership();
     test_update_overwrite_nested();
+    test_resize();
     return 0;
 }
