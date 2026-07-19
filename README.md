@@ -24,6 +24,7 @@ The project aims to simplify the manipulation of dynamic data structures in C wh
 - Nested dictionaries and lists (dict-in-dict, dict-in-list, and any mix thereof)
 - Generic constructors using C11 `_Generic` (`new_value`, `destroy`)
 - Non-recursive (worklist-based) destruction of nested objects
+- Error reporting through status codes
 - Simple and lightweight API
 
 ### Supported value types
@@ -92,7 +93,7 @@ destroy(&dict);   // destroys dict, then child, automatically
 ### `destroy()` behavior
 
 - `destroy(&obj)` sets `obj` to `NULL` after destroying it. Calling `destroy()` again on the same (now-`NULL`) pointer is safe and simply does nothing.
-- If `obj` still has other owners (its reference count is greater than zero — e.g. it's still stored inside another container), `destroy()` **silently does nothing**. Only call `destroy()` on an object you own directly, not on one you've inserted somewhere else; destroying the top-level container will clean up everything nested inside it.
+- If `obj` still has other owners (its reference count is greater than zero — e.g. it is still stored inside another container), `destroy()` returns a warning status (`DICT_WARNING_DEFERENTIAL` or `LIST_WARNING_DEFERENTIAL`) and does not free the object. Only call `destroy()` on an object you own directly, not on one you've inserted somewhere else; destroying the top-level container will clean up everything nested inside it.
 
 ### Shared ownership
 
@@ -128,17 +129,37 @@ The `capacity` you pass to `create_dictionary`/`create_list` is just a starting 
 
 ## API Quick Reference
 
-Full signatures are in `wUtils.h`. A few behaviors aren't obvious from the signatures alone:
+Full signatures are available in `wUtils.h`.
 
 | Function | What to know |
 |---|---|
-| `create_dictionary(capacity)` / `create_list(capacity)` | `capacity` is just a starting size (see [Automatic resizing](#automatic-resizing)). Returns `NULL` on invalid input or allocation failure. |
-| `insert_value(dict, key, value)` | Replaces the value if `key` already exists. May trigger a resize. Fails silently on allocation error. |
-| `append_element(list, value)` | May trigger a resize. Fails silently on allocation error. |
-| `get_value(dict, key)` / `get_element(list, index)` | Return an untyped `void *` — you must know the expected type and cast it yourself; there's no runtime type check. Returns `NULL` if not found. |
-| `destroy(&obj)` | See [`destroy()` behavior](#destroy-behavior) above — sets `obj` to `NULL`, safe to call again. |
+| `create_dictionary(capacity)` / `create_list(capacity)` | Allocates a new container. Returns `NULL` on invalid capacity or allocation failure. |
+| `insert_value(dict, key, value)` | Inserts or replaces a value. Returns `DICT_OK` on success or `DICT_ERR_MEMORY` if an allocation fails. |
+| `append_element(list, value)` | Appends a value to the list. Returns `LIST_OK` on success or `LIST_ERR_MEMORY` if an allocation fails. |
+| `resize_dict(dict)` / `resize_list(list)` | Automatically called when containers are full. Returns a status code indicating success or allocation failure. |
+| `get_value(dict, key)` / `get_element(list, index)` | Return an untyped `void *`. The caller must know the expected type and cast it correctly. Returns `NULL` if the element does not exist. |
+| `destroy(&obj)` | Releases a dictionary or list and all nested objects whose reference count reaches zero. Returns a status code. |
 
 ---
+
+## Error Handling
+
+Most modifying operations return a status code.
+
+Example:
+
+```c
+wDict *dict = create_dictionary(16);
+
+int status = insert_value(dict, "name", new_value("Walter"));
+
+if(status != DICT_OK){
+    printf("Insertion failed\n");
+}
+
+destroy(&dict);
+```
+
 
 ## Testing
 
@@ -147,8 +168,23 @@ There's no automated test suite yet, but the core behaviors have been manually v
 - Multi-level nesting of mixed dictionaries and lists
 - Shared ownership across multiple containers, destroyed in different orders
 - Overwriting a key that holds a nested dictionary/list
-- Allocation failures during destruction (partial cleanup on out-of-memory)
+- Allocation failures during creation, insertion, resizing and destruction paths
 - Resizing a dictionary that is shared with another container
+
+
+Error codes are exposed through:
+
+- `DICT_OK`
+- `DICT_ERR_MEMORY`
+- `DICT_WARNING_DEFERENTIAL`
+
+and:
+
+- `LIST_OK`
+- `LIST_ERR_MEMORY`
+- `LIST_WARNING_DEFERENTIAL`
+
+allowing callers to detect allocation failures or deferred destruction.
 
 These checks confirm no leaks or use-after-free/double-free issues **on the scenarios tested** — this is not a guarantee of exhaustive correctness. An automated test suite (ideally run under ASan/Valgrind in CI) is very welcome as a contribution — see [Roadmap](#roadmap).
 
@@ -173,13 +209,13 @@ gcc -fsanitize=address -g -O0 main.c wUtils.c hash_fnv1a_64.c -o test_wdict && .
 
 This project is still experimental. Known limitations include:
 
-- **Not thread-safe.** There's no internal locking. Sharing a `wDict`/`wList` across threads — even indirectly, through a nested shared object — will cause data races. (This matches how most C hash table libraries work, e.g. uthash or khash — synchronization is left to the caller. Just don't share one across threads without adding your own locking.)
-- **No error reporting.** Allocation failures inside `insert_value`, `append_element`, resizing, and destruction fail silently rather than returning an error. `wDictStatus` exists in the header for this purpose but isn't wired up to any function yet.
-- **Untyped reads.** `get_value`/`get_element` return `void *` with no type checking — casting to the wrong type is undefined behavior.
-- **No cycle detection.** If two objects reference each other, plain reference counting can't collect them (this needs a separate cycle-detection mechanism, not a simple fix).
-- **Debug output.** `printf` statements are scattered through the codebase from development; not yet gated behind a debug flag.
-- **Testing is manual**, not part of an automated/CI pipeline (see [Testing](#testing)).
-- **Performance** hasn't been benchmarked or optimized.
+- **Not thread-safe.** There is no internal locking mechanism. Sharing a `wDict` or `wList` across multiple threads requires external synchronization.
+- **Untyped reads.** `get_value()` and `get_element()` return `void *` without runtime type checking. Reading a value with the wrong cast results in undefined behavior.
+- **No cycle detection.** Reference counting cannot automatically collect cyclic references. A separate cycle detection mechanism would be required.
+- **Debug output.** Development `printf()` statements are still present and should be replaced with a configurable logging system.
+- **Partial error propagation.** Most allocation paths expose error codes, but some internal failures during resizing or cleanup are not yet fully propagated to the caller.
+- **Testing is manual.** There is currently no automated CI test suite.
+- **Performance** has not yet been benchmarked or optimized.
 
 ---
 
@@ -190,7 +226,7 @@ This project is still experimental. Known limitations include:
 - Deep copy support
 - JSON serialization/deserialization
 - Typed accessors instead of raw `void *`
-- Proper error reporting via `wDictStatus`
+- Improve and standardize error propagation across all APIs
 - Debug output behind a compile-time flag
 - Automated test suite running under ASan/Valgrind in CI
 - Optional thread-safe wrapper (without adding locking overhead to the default API)
