@@ -23,8 +23,16 @@
 typedef enum {
     DICT_OK = 0,
     DICT_ERR_MEMORY = -1,
-    DICT_ERR_INVALID = -2
+    DICT_WARNING_DEFERENTIAL = -2
 } wDictStatus;
+
+
+typedef enum {
+    LIST_OK = 0,
+    LIST_ERR_MEMORY = -1,
+    LIST_WARNING_DEFERENTIAL = -2
+} wListStatus;
+
 
 typedef struct wDict wDict;
 typedef struct wList wList;
@@ -97,20 +105,20 @@ Value _type_value_double(double value);
 Value _type_value_text(char* value);
 Value _type_value_dict(wDict* value);
 Value _type_value_list(wList* value);
-void _destroy_list(wList **list_ptr);
-void _destroy_dict(wDict **dict_ptr);
+int _destroy_list(wList **list_ptr);
+int _destroy_dict(wDict **dict_ptr);
 
 
 
 wDict * create_dictionary(int capacity);
-void insert_value(wDict * dict, char * key, Value value);
+int insert_value(wDict * dict, char * key, Value value);
 void * get_value(wDict * dict,char * key);
 
 wList * create_list(int capacity);
-void append_element(wList * list, Value value);
+int append_element(wList * list, Value value);
 void * get_element(wList * dict,int index);
-void resize_dict(wDict * dict);
-void resize_list(wList * list);
+int resize_dict(wDict * dict);
+int resize_list(wList * list);
 
 
 #define destroy(object) _Generic((object), \

@@ -68,12 +68,17 @@ Value _type_value_list(wList* value){
 
 }
 
-
+/*
+return value for dict[key]. 
+If the key is not used the function return NULL
+*/
 void * get_value(wDict * dict,char * key){
     uint64_t index =  hashing_fnv1a(key,dict->capacity);
+    
     if (dict->slots[index] == NULL) return NULL;
-    printf("sono qui\n");
+    
     Node * next_node = dict->slots[index];
+    
     while(next_node != NULL){
         if (strcmp(next_node->key,key)==0){
             switch(next_node->value.type){
@@ -112,12 +117,12 @@ void * get_element(wList * list,int index){
 
 
 
-void insert_value(wDict * dict, char * key, Value value){
+int insert_value(wDict * dict, char * key, Value value){
     
     uint64_t index =  hashing_fnv1a(key,dict->capacity);
 
     Node * node = malloc(sizeof(Node));
-    if(node == NULL) return;
+    if(node == NULL) return DICT_ERR_MEMORY;
     
     node->key = strdup(key);
     node->value = value;
@@ -149,7 +154,7 @@ void insert_value(wDict * dict, char * key, Value value){
                 //node is not more useful
                 free(node->key);
                 free(node);
-                return;
+                return DICT_OK;
             }
             tmp_node=next_node;
             next_node=next_node->next;
@@ -164,11 +169,11 @@ void insert_value(wDict * dict, char * key, Value value){
         printf("resized \n");
     }
         
-
+    return DICT_OK;
 }
 
 
-void append_element(wList * list, Value value){
+int append_element(wList * list, Value value){
     
     int index = list->element_inserted;
     if (index<list->capacity){
@@ -176,7 +181,7 @@ void append_element(wList * list, Value value){
         if(value.type == LIST) value.data.list->ref_counting +=1;
         
         Value * stored = malloc(sizeof(Value));
-        if (stored == NULL) return; 
+        if (stored == NULL) return LIST_ERR_MEMORY; 
 
         *stored = value;
 
@@ -190,7 +195,7 @@ void append_element(wList * list, Value value){
             printf("realloc list\n");
         }
     }
-
+    return LIST_OK;
     
 }
 
@@ -216,7 +221,7 @@ static void free_dict_list(wDict_destroy * dict_list,wList_destroy * lists_toDes
 
 }
 
-void resize_dict(wDict * dict){
+int resize_dict(wDict * dict){
     int old_capacity = dict->capacity;
     int old_element_inserted = dict->element_inserted;
     int new_capacity= old_capacity*2;
@@ -227,6 +232,7 @@ void resize_dict(wDict * dict){
     printf("eccomi qui\n");
     if (tmp == NULL){
         printf("Errore riallocazione \n");
+        return DICT_ERR_MEMORY;
     }else{
         printf("else \n");
         Node ** old = dict->slots;
@@ -262,20 +268,21 @@ void resize_dict(wDict * dict){
         destroy(&tmp_dict);
         printf("fine \n");
     }
-
+    return DICT_OK;
 }
 
 
-void resize_list(wList * list){
+int resize_list(wList * list){
     int new_capacity = list->capacity*2;
     Value ** tmp = realloc(list->elements,(sizeof(Value*) * new_capacity));
     if (tmp == NULL){
         printf("Errore riallocazione \n");
+        return LIST_ERR_MEMORY;
     }else{
         list->capacity = new_capacity;
         list->elements = tmp;
     }
-
+    return LIST_OK;
 }
 
 
@@ -492,45 +499,49 @@ static void destroy_object(wDict_destroy * dict_list,wList_destroy * lists_toDes
 
 
 
-void _destroy_dict(wDict **dict_ptr){
+int _destroy_dict(wDict **dict_ptr){
     if(dict_ptr==NULL || *dict_ptr==NULL) {
         printf("dictionary already destroyed \n");
-        return;
+        return DICT_ERR_MEMORY;
     }
+
+    //dictiory just deferenced
     wDict * dict = *dict_ptr;
-    if(dict->ref_counting>0) return;
+    if(dict->ref_counting>0) return DICT_WARNING_DEFERENTIAL;
 
     wList_destroy * lists_toDestroy= NULL;
     wDict_destroy * dict_list= NULL;
     dict_list = malloc(sizeof(wDict_destroy));
-    if(dict_list == NULL) return;
+    if(dict_list == NULL) return DICT_ERR_MEMORY;
 
     dict_list->next = NULL;
     dict_list->dict = dict;
     destroy_object(dict_list,lists_toDestroy);
     *dict_ptr=NULL;
+
+    return DICT_OK;
 }
 
 
-void _destroy_list(wList **list_ptr){
+int _destroy_list(wList **list_ptr){
     if(list_ptr ==NULL || *list_ptr==NULL) {
         printf("list already destroyed \n");
-        return;
+        return LIST_ERR_MEMORY;
     }
     wList * list = *list_ptr;
-    if(list->ref_counting>0) return;
+    if(list->ref_counting>0) return LIST_WARNING_DEFERENTIAL;
 
     wList_destroy * lists_toDestroy= NULL;
     wDict_destroy * dict_list= NULL;
     
     lists_toDestroy = malloc(sizeof(wList_destroy));
-    if(lists_toDestroy == NULL) return;
+    if(lists_toDestroy == NULL) return LIST_ERR_MEMORY;
 
     lists_toDestroy->next = NULL;
     lists_toDestroy->list = list;
     destroy_object(dict_list,lists_toDestroy);
     *list_ptr=NULL;
-
+    return LIST_OK;
 }
 
 
