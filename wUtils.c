@@ -85,7 +85,10 @@ void * get_value(wDict * dict,char * key){
                 case NUMBER: return &next_node->value.data.number;
                 case DOUBLE: return &next_node->value.data.real;
                 case TEXT: return next_node->value.data.text;
+
                 case DICTIONARY: return next_node->value.data.dict;
+                case LIST: return next_node->value.data.list;
+
                 default : break;
             }
         }
@@ -105,7 +108,9 @@ void * get_element(wList * list,int index){
         case NUMBER: {printf("number \n");return &list->elements[index]->data.number;}
         case DOUBLE: return &list->elements[index]->data.real;
         case TEXT: return list->elements[index]->data.text;
+        
         case DICTIONARY: return list->elements[index]->data.dict;
+        case LIST: return list->elements[index]->data.list;
         default : break;
     }
        
@@ -313,7 +318,7 @@ static void destroy_object(wDict_destroy * dict_list,wList_destroy * lists_toDes
                 for(int i=0; i<dict_list->dict->capacity; i++){
                     switch_slot = slot = dict_list->dict->slots[i];
                     
-                    //Destroy collision list of the slot
+                    //Destroy collision list of the slot Node
                     while (slot != NULL){
                         
                         switch(slot->value.type){
